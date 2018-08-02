@@ -20,13 +20,54 @@ namespace Moloko.Portal.SystemSetting.EF
         /// <param name="name">Название настройки</param>
         /// <param name="def">Значение по умолчанию</param>
         /// <returns>Настройка</returns>
-        public static string GetSystemSetting(this ISystemSettingsContext context, int customerID, string name, string def)
+        public static string GetSystemSetting(this ISystemSettingsContext context, int customerID, string name,
+            string def)
         {
-            var setting = context.SystemSettings.FirstOrDefault(i => i.CustomerID == customerID && i.SystemSettingType.Name == name);
+            var setting = context.SystemSettings.FirstOrDefault(i =>
+                i.CustomerID == customerID && i.SystemSettingType.Name == name && i.TerminalID == null);
             var history = setting?.History.OrderByDescending(i => i.ModifiedDate).FirstOrDefault();
             var value = history?.SettingValue;
             return value ?? def;
         }
+
+        /// <summary>
+        /// Получить системную настройку для терминала
+        /// </summary>
+        /// <param name="context">Контекст</param>
+        /// <param name="terminalID">Ид терминала</param>
+        /// <param name="name">Название настройки</param>
+        /// <param name="def">Значение по умолчанию</param>
+        /// <returns></returns>
+        public static string GetTerminalSetting(this ISystemSettingsContext context, int terminalID, string name,
+            string def)
+        {
+            var setting =
+                context.SystemSettings.FirstOrDefault(i =>
+                    i.SystemSettingType.Name == name && i.TerminalID == terminalID);
+            var history = setting?.History.OrderByDescending(i => i.ModifiedDate).FirstOrDefault();
+            var value = history?.SettingValue;
+            return value ?? def;
+        }
+
+        /// <summary>
+        /// Получить системную настройку для терминала как число
+        /// </summary>
+        /// <param name="context">Контекст</param>
+        /// <param name="terminalID">Ид терминала</param>
+        /// <param name="name">Название настройки</param>
+        /// <param name="def">Значение по умолчанию</param>
+        /// <returns></returns>
+        public static int GetTerminalSetting(this ISystemSettingsContext context, int terminalID, string name, int def)
+        {
+            var result = context.GetTerminalSetting(terminalID, name, null);
+            if (string.IsNullOrEmpty(result))
+            {
+                return def;
+            }
+
+            return int.Parse(result);
+        }
+
         /// <summary>
         /// Получить системную настройку как число
         /// </summary>
@@ -42,6 +83,7 @@ namespace Moloko.Portal.SystemSetting.EF
             {
                 return def;
             }
+
             return int.Parse(result);
         }
 
@@ -51,7 +93,8 @@ namespace Moloko.Portal.SystemSetting.EF
         /// <param name="context">Контекст</param>
         /// <param name="customerID">Ид торгового центра</param>
         /// <param name="settings">Коллекция настроек</param>
-        public static void AddSettings(this ISystemSettingsContext context, int customerID, IEnumerable<SystemSettingType> settings)
+        public static void AddSettings(this ISystemSettingsContext context, int customerID,
+            IEnumerable<SystemSettingType> settings)
         {
             foreach (SystemSettingType settingType in settings)
             {
@@ -61,18 +104,22 @@ namespace Moloko.Portal.SystemSetting.EF
                     systemSettingType = settingType;
                     context.SystemSettingTypes.Add(systemSettingType);
                 }
+
                 var setting = systemSettingType.Settings.FirstOrDefault(i => i.CustomerID == customerID);
                 if (setting == null)
                 {
                     context.SystemSettings.Add(new Model.SystemSetting()
                     {
                         CustomerID = customerID,
-                        SystemSettingType = systemSettingType
+                        SystemSettingType = systemSettingType,
+                        TerminalID = null
                     });
                 }
             }
+
             context.SaveChanges();
         }
+
         /// <summary>
         /// Получить значение системной настройки, если нет то добавить
         /// </summary>
@@ -82,9 +129,11 @@ namespace Moloko.Portal.SystemSetting.EF
         /// <param name="changeAction">Действие при изменении настройки</param>
         /// <param name="def">Значение по умолчанию</param>
         /// <returns>Значение настройки</returns>
-        public static string GetOrCreateSystemSetting(this ISystemSettingsContext context, int customerID, SystemSettingType systemSettingType, string changeAction, string def)
+        public static string GetOrCreateSystemSetting(this ISystemSettingsContext context, int customerID,
+            SystemSettingType systemSettingType, string changeAction, string def)
         {
-            var setting = context.SystemSettings.FirstOrDefault(i => i.CustomerID == customerID && i.SystemSettingType.Name == systemSettingType.Name);
+            var setting = context.SystemSettings.FirstOrDefault(i =>
+                i.CustomerID == customerID && i.SystemSettingType.Name == systemSettingType.Name);
             if (setting == null)
             {
                 var st = context.SystemSettingTypes.FirstOrDefault(i => i.Name == systemSettingType.Name);
@@ -93,11 +142,13 @@ namespace Moloko.Portal.SystemSetting.EF
                     st = systemSettingType;
                     context.SystemSettingTypes.Add(st);
                 }
+
                 var ss = new Model.SystemSetting()
                 {
                     SystemSettingType = st,
                     CustomerID = customerID,
-                    ChangeAction = changeAction
+                    ChangeAction = changeAction,
+                    TerminalID = null
                 };
                 context.SystemSettings.Add(ss);
                 ss.History.Add(new SystemSettingHistory()
@@ -108,10 +159,12 @@ namespace Moloko.Portal.SystemSetting.EF
                 context.SaveChanges();
                 return def;
             }
+
             var history = setting.History.OrderByDescending(i => i.ModifiedDate).FirstOrDefault();
             var value = history?.SettingValue;
             return value ?? def;
         }
+
         /// <summary>
         /// Получить значение системной настройки, если нет то добавить
         /// </summary>
@@ -124,9 +177,12 @@ namespace Moloko.Portal.SystemSetting.EF
         /// <param name="changeAction">Действие при изменении настройки</param>
         /// <param name="def">Значение по умолчанию</param>
         /// <returns>Значение настройки</returns>
-        public static string GetOrCreateSystemSetting(this ISystemSettingsContext context, int customerID, string name, string settingsFormat, string description, SystemType type, string changeAction, string def)
+        public static string GetOrCreateSystemSetting(this ISystemSettingsContext context, int customerID, string name,
+            string settingsFormat, string description, SystemType type, string changeAction, string def)
         {
-            var setting = context.SystemSettings.FirstOrDefault(i => i.CustomerID == customerID && i.SystemSettingType.Name == name);
+            var setting =
+                context.SystemSettings.FirstOrDefault(i =>
+                    i.CustomerID == customerID && i.SystemSettingType.Name == name);
             if (setting == null)
             {
                 var st = context.SystemSettingTypes.FirstOrDefault(i => i.Name == name);
@@ -141,12 +197,13 @@ namespace Moloko.Portal.SystemSetting.EF
                     };
                     context.SystemSettingTypes.Add(st);
                 }
+
                 var ss = new Model.SystemSetting()
                 {
                     SystemSettingType = st,
                     CustomerID = customerID,
-                    ChangeAction = changeAction
-
+                    ChangeAction = changeAction,
+                    TerminalID = null
                 };
                 context.SystemSettings.Add(ss);
                 ss.History.Add(new SystemSettingHistory()
@@ -157,10 +214,12 @@ namespace Moloko.Portal.SystemSetting.EF
                 context.SaveChanges();
                 return def;
             }
+
             var history = setting.History.OrderByDescending(i => i.ModifiedDate).FirstOrDefault();
             var value = history?.SettingValue;
             return value ?? def;
         }
+
         /// <summary>
         /// Установить значение настройки
         /// </summary>
@@ -168,12 +227,16 @@ namespace Moloko.Portal.SystemSetting.EF
         /// <param name="customerID">Ид торгового центра</param>
         /// <param name="name">Название настройки</param>
         /// <param name="value">Значение по умолчанию</param>
-        public static void SetSystemSetting(this ISystemSettingsContext context, int customerID, string name, string value)
+        public static void SetSystemSetting(this ISystemSettingsContext context, int customerID, string name,
+            string value)
         {
             var setting = context.GetSystemSetting(customerID, name, null);
             if (setting != value)
             {
-                var ss = context.SystemSettings.FirstOrDefault(i => i.CustomerID == customerID && i.SystemSettingType.Name == name);
+                var ss = context.SystemSettings.FirstOrDefault(i =>
+                    i.CustomerID == customerID && 
+                    i.SystemSettingType.Name == name && 
+                    i.TerminalID == null);
                 ss.History.Add(new SystemSettingHistory()
                 {
                     SettingValue = value,
@@ -181,7 +244,33 @@ namespace Moloko.Portal.SystemSetting.EF
                 });
                 context.SaveChanges();
             }
-
+        }
+        /// <summary>
+        /// Установить значение настройки для терминала
+        /// </summary>
+        /// <param name="context">Контекст</param>
+        /// <param name="customerID">Ид торгового центра</param>
+        /// <param name="terminalID">Ид терминала</param>
+        /// <param name="name">Название настройки</param>
+        /// <param name="value">Значение по умолчанию</param>
+        public static void SetTerminalSetting(this ISystemSettingsContext context, int customerID, int terminalID,
+            string name,
+            string value)
+        {
+            var setting = context.GetTerminalSetting(terminalID, name, null);
+            if (setting != value)
+            {
+                var ss = context.SystemSettings.FirstOrDefault(i =>
+                    i.CustomerID == customerID && 
+                    i.SystemSettingType.Name == name && 
+                    i.TerminalID == terminalID);
+                ss.History.Add(new SystemSettingHistory()
+                {
+                    SettingValue = value,
+                    ModifiedDate = DateTime.Now
+                });
+                context.SaveChanges();
+            }
         }
     }
 }

@@ -17,6 +17,10 @@ namespace Moloko.Portal.SystemSetting.Model
         /// </summary>
         public int? CustomerID { get; set; }
         /// <summary>
+        /// Связь с терминалом
+        /// </summary>
+        public int? TerminalID { get; set; }
+        /// <summary>
         /// Тип настройки 
         /// </summary>
         public int SystemSettingTypeID { get; set; }
